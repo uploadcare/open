@@ -130,10 +130,9 @@ def convert_pdf(
             raise ValueError("PDF has no pages")
 
         pages = _normalize_page(page, doc.page_count)
-        alpha = output_format == "png"
 
         for index, page_number in pages:
-            pix = doc[index].get_pixmap(dpi=dpi, alpha=alpha)
+            pix = doc[index].get_pixmap(dpi=dpi)
             tmp = NamedTemporaryFile(delete=False, suffix=f".{fmt}")
             pix.save(tmp.name, **save_kwargs)
             outputs.append((page_number, tmp.name))
