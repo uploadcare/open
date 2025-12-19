@@ -1,0 +1,10 @@
+# Runtime
+awslambdaric==3.1.1
+
+# App
+dynaconf==3.2.11
+dynaconf-aws-loader==0.5.0
+rollbar==0.16.3
+boto3==1.26.113
+urllib3<1.27,>=1.25.4
+PyMuPDF==1.24.10

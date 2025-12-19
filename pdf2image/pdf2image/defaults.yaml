@@ -1,0 +1,12 @@
+default:
+  ENVIRONMENT: development
+  VERSION: latest
+  TIMEOUT: 900
+  MAX_ATTEMPTS: 3
+  FILE_CACHE_DIR: /tmp/cache/
+  DEFAULT_DPI: 72
+  DEFAULT_FORMAT: png
+  ROLLBAR_TOKEN: ""
+  S3_READER:
+    access_key: null
+    secret_key: null
