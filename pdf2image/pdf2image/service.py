@@ -27,7 +27,7 @@ from pdf2image.utils import (
 makedirs(settings.FILE_CACHE_DIR, exist_ok=True)
 
 
-Status = Literal["pending", "success", "fail", None]
+Status = Literal["processing", "successful", "failed", None]
 
 
 class OutputEntry(TypedDict):
@@ -223,20 +223,20 @@ def invoke(event: Event, _context: Any) -> State:
         prev_status: Status = prev_state.get("status")  # type: ignore[assignment]
         state["attempts"] = prev_state.get("attempts", 0)
 
-        if prev_status == "success" and _first_output_exists(prev_state):
+        if prev_status == "successful" and _first_output_exists(prev_state):
             return prev_state
 
-        if prev_status == "pending":
+        if prev_status == "processing":
             if not _has_timed_out(prev_state, datetime.utcnow()):
                 return prev_state
 
             state["attempts"] += 1
-            state["status"] = "fail"
+            state["status"] = "failed"
             state["error"] = "task timed out"
             _save_state(output_bucket, state_key, state)
 
         if (
-            prev_status == "fail"
+            prev_status == "failed"
             and prev_state.get("attempts", 0) >= settings.MAX_ATTEMPTS
         ):
             return prev_state
@@ -245,18 +245,18 @@ def invoke(event: Event, _context: Any) -> State:
         input_file = download_input_url(source_url)
     except Exception as exc:
         input_file = None
-        state["status"] = "fail"
+        state["status"] = "failed"
         state["error"] = str(exc)
 
     if input_file is None:
-        state["status"] = state.get("status") or "fail"
+        state["status"] = state.get("status") or "failed"
         state["error"] = state.get("error") or "input file not found"
         state["total_time"] = (datetime.utcnow() - start).total_seconds()
         state["attempts"] += 1
         _save_state(output_bucket, state_key, state)
         return state
 
-    state["status"] = "pending"
+    state["status"] = "processing"
     _save_state(output_bucket, state_key, state)
 
     page_files_temp: list[tuple[str, str]] = []
@@ -311,11 +311,11 @@ def invoke(event: Event, _context: Any) -> State:
             )
 
         state["target_files"] = target_files
-        state["status"] = "success"
+        state["status"] = "successful"
         state["attempts"] = 0
 
     except Exception as exc:
-        state["status"] = "fail"
+        state["status"] = "failed"
         state["attempts"] += 1
         state["error"] = str(exc)
 
