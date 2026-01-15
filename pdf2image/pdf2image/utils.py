@@ -17,7 +17,7 @@ CONTENT_TYPES = {"png": "image/png", "jpg": "image/jpeg"}
 
 VALID_DPI_VALUES = {72, 96, 110, 150, 200, 250, 300, 600}
 VALID_QUALITY_VALUES = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
-VALID_OUTPUT_FORMATS = {"png", "jpg", "small.jpg", "enhanced.jpg"}
+VALID_OUTPUT_FORMATS = {"png", "jpg", "small.jpg"}
 
 s3 = boto3.client(
     "s3",
@@ -98,21 +98,20 @@ def convert_pdf(
         raise ValueError(f"Unsupported output format: {output_format}")
 
     is_small = output_format == "small.jpg"
-    is_enhanced = output_format == "enhanced.jpg"
-    fmt = "jpg" if (is_small or is_enhanced) else output_format
+    fmt = "jpg" if is_small else output_format
 
     if is_small:
         dpi = 110
         quality = 50
-    if is_enhanced:
-        dpi = 300
-        quality = 80
 
     if dpi is None:
         dpi = settings.DEFAULT_DPI
 
     if dpi not in VALID_DPI_VALUES:
         raise ValueError(f"Unsupported dpi: {dpi}")
+
+    if quality is None and fmt == "jpg":
+        quality = settings.DEFAULT_JPG_QUALITY
 
     if quality is not None:
         if fmt != "jpg":
