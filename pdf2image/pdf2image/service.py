@@ -158,14 +158,10 @@ def _resolve_page(event: Event) -> int | None:
     return page_int
 
 
-def _sanitize_name(value: str) -> str:
-    return "".join(ch for ch in value if ch.isalnum() or ch == "_")
-
-
 def _resolve_filename(source_url: str | None) -> tuple[str, str]:
     base = os.path.basename(urlsplit(source_url).path)
     name_root, _ = os.path.splitext(base)
-    return base, _sanitize_name(name_root) or "noroot"
+    return base, name_root or "noroot"
 
 
 def _cleanup_temp_files(page_files: list[tuple[str, str]]) -> None:
