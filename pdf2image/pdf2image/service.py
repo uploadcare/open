@@ -15,6 +15,7 @@ from json import dumps, loads
 from os import makedirs
 from tempfile import NamedTemporaryFile
 from typing import Any, Literal, TypedDict
+from urllib.parse import urlsplit
 
 import rollbar
 
@@ -162,11 +163,9 @@ def _sanitize_name(value: str) -> str:
 
 
 def _resolve_filename(source_url: str | None) -> tuple[str, str]:
-    base = os.path.basename((source_url or "").split("?")[0])
-    filename = base or "document.pdf"
-    name_root, _ = os.path.splitext(filename)
-    name_root = _sanitize_name(name_root) or "noroot"
-    return filename, name_root
+    base = os.path.basename(urlsplit(source_url).path)
+    name_root, _ = os.path.splitext(base)
+    return base, _sanitize_name(name_root) or "noroot"
 
 
 def _cleanup_temp_files(page_files: list[tuple[str, str]]) -> None:
@@ -279,11 +278,11 @@ def invoke(event: Event, _context: Any) -> State:
         state["convert_time"] = (datetime.utcnow() - start).total_seconds()
 
         for page_number, image_path in outputs:
-            key = build_output_key(output_prefix, page_number, fmt)
             if len(outputs) == 1:
                 target_filename = f"{name_root}.{fmt}"
             else:
                 target_filename = f"{name_root}-{page_number}.{fmt}"
+            key = build_output_key(output_prefix, target_filename)
             size = os.path.getsize(image_path)
 
             target_files.append(

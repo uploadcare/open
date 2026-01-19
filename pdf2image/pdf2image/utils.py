@@ -73,9 +73,9 @@ def download_input_url(url: str) -> IO[bytes]:
     return tmp
 
 
-def build_output_key(output_prefix: str, page_number: int, fmt: str) -> str:
+def build_output_key(output_prefix: str, filename: str) -> str:
     prefix = output_prefix.rstrip("/")
-    return f"{prefix}/page-{page_number}.{fmt}"
+    return f"{prefix}/{filename}"
 
 
 def _normalize_page(page: int | None, total_pages: int) -> list[int]:
