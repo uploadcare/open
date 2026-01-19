@@ -1,7 +1,7 @@
 """
 PDF to image conversion Lambda.
 
-State is stored in S3 next to the output prefix as `<output_prefix>.state.json`.
+State is stored in S3 inside the output prefix as `<output_prefix>/state.json`.
 The flow mirrors gif2video: reuse previous state when possible, respect timeouts,
 and avoid reprocessing finished jobs.
 """

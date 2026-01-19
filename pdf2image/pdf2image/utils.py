@@ -1,5 +1,6 @@
 from tempfile import NamedTemporaryFile
 from typing import IO, Any
+import posixpath
 
 import boto3
 import fitz
@@ -11,8 +12,6 @@ from pdf2image import settings
 
 MB = 2**20
 CHUNK_SIZE = 2 * MB
-STATE_SUFFIX = ".state.json"
-
 CONTENT_TYPES = {"png": "image/png", "jpg": "image/jpeg"}
 
 VALID_DPI_VALUES = {72, 96, 110, 150, 200, 250, 300, 600}
@@ -28,7 +27,7 @@ http: urllib3.PoolManager = urllib3.PoolManager()
 
 
 def state_file_key(output_prefix: str) -> str:
-    return f"{output_prefix.rstrip('/')}{STATE_SUFFIX}"
+    return posixpath.join(output_prefix.rstrip("/"), "state.json")
 
 
 def get_object(bucket: str, key: str) -> dict[str, Any] | None:
