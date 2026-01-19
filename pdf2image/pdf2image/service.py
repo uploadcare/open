@@ -151,16 +151,21 @@ def _resolve_page(event: Event) -> int | None:
     except (TypeError, ValueError):
         raise ValueError("page must be an integer")
 
-    if page_int <= 0:
-        raise ValueError(f"page must be >= 1, got {page_int}")
+    if page_int < 0:
+        raise ValueError(f"page must be >= 0, got {page_int}")
 
     return page_int
+
+
+def _sanitize_name(value: str) -> str:
+    return "".join(ch for ch in value if ch.isalnum() or ch == "_")
 
 
 def _resolve_filename(source_url: str | None) -> tuple[str, str]:
     base = os.path.basename((source_url or "").split("?")[0])
     filename = base or "document.pdf"
     name_root, _ = os.path.splitext(filename)
+    name_root = _sanitize_name(name_root) or "noroot"
     return filename, name_root
 
 
@@ -275,7 +280,10 @@ def invoke(event: Event, _context: Any) -> State:
 
         for page_number, image_path in outputs:
             key = build_output_key(output_prefix, page_number, fmt)
-            target_filename = f"{name_root}-{page_number}.{fmt}"
+            if len(outputs) == 1:
+                target_filename = f"{name_root}.{fmt}"
+            else:
+                target_filename = f"{name_root}-{page_number}.{fmt}"
             size = os.path.getsize(image_path)
 
             target_files.append(

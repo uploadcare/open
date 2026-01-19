@@ -78,13 +78,13 @@ def build_output_key(output_prefix: str, page_number: int, fmt: str) -> str:
     return f"{prefix}/page-{page_number}.{fmt}"
 
 
-def _normalize_page(page: int | None, total_pages: int) -> list[tuple[int, int]]:
+def _normalize_page(page: int | None, total_pages: int) -> list[int]:
     if page is not None:
-        if page <= 0:
-            raise ValueError(f"Page must be >= 1, got {page}")
-        page_number = min(page, total_pages)
-        return [(page_number - 1, page_number)]
-    return [(i, i + 1) for i in range(total_pages)]
+        if page < 0:
+            raise ValueError(f"Page must be >= 0, got {page}")
+        page_number = min(page, total_pages - 1)
+        return [page_number]
+    return list(range(total_pages))
 
 
 def convert_pdf(
@@ -130,8 +130,8 @@ def convert_pdf(
 
         pages = _normalize_page(page, doc.page_count)
 
-        for index, page_number in pages:
-            pix = doc[index].get_pixmap(dpi=dpi)
+        for page_number in pages:
+            pix = doc[page_number].get_pixmap(dpi=dpi)
             tmp = NamedTemporaryFile(delete=False, suffix=f".{fmt}")
             pix.save(tmp.name, **save_kwargs)
             outputs.append((page_number, tmp.name))
