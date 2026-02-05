@@ -152,8 +152,8 @@ def _resolve_page(event: Event) -> int | None:
     except (TypeError, ValueError):
         raise ValueError("page must be an integer")
 
-    if page_int < 0:
-        raise ValueError(f"page must be >= 0, got {page_int}")
+    if page_int <= 0:
+        raise ValueError(f"page must be >= 1, got {page_int}")
 
     return page_int
 
@@ -263,11 +263,12 @@ def invoke(event: Event, _context: Any) -> State:
     target_files: list[TargetFile] = []
 
     try:
+        page_index = page - 1 if page is not None else None
         outputs, fmt = convert_pdf(
             input_file.name,
             output_format=output_format,
             dpi=dpi,
-            page=page,
+            page=page_index,
             quality=quality,
         )
 
