@@ -1,5 +1,6 @@
 from tempfile import NamedTemporaryFile
 from typing import IO, Any
+import posixpath
 
 import boto3
 import fitz
@@ -11,8 +12,6 @@ from pdf2image import settings
 
 MB = 2**20
 CHUNK_SIZE = 2 * MB
-STATE_SUFFIX = ".state.json"
-
 CONTENT_TYPES = {"png": "image/png", "jpg": "image/jpeg"}
 
 VALID_DPI_VALUES = {72, 96, 110, 150, 200, 250, 300, 600}
@@ -28,7 +27,7 @@ http: urllib3.PoolManager = urllib3.PoolManager()
 
 
 def state_file_key(output_prefix: str) -> str:
-    return f"{output_prefix.rstrip('/')}{STATE_SUFFIX}"
+    return posixpath.join(output_prefix.rstrip("/"), "state.json")
 
 
 def get_object(bucket: str, key: str) -> dict[str, Any] | None:
@@ -73,18 +72,18 @@ def download_input_url(url: str) -> IO[bytes]:
     return tmp
 
 
-def build_output_key(output_prefix: str, page_number: int, fmt: str) -> str:
+def build_output_key(output_prefix: str, filename: str) -> str:
     prefix = output_prefix.rstrip("/")
-    return f"{prefix}/page-{page_number}.{fmt}"
+    return f"{prefix}/{filename}"
 
 
-def _normalize_page(page: int | None, total_pages: int) -> list[tuple[int, int]]:
+def _normalize_page(page: int | None, total_pages: int) -> list[int]:
     if page is not None:
-        if page <= 0:
-            raise ValueError(f"Page must be >= 1, got {page}")
-        page_number = min(page, total_pages)
-        return [(page_number - 1, page_number)]
-    return [(i, i + 1) for i in range(total_pages)]
+        if page < 0:
+            raise ValueError(f"Page must be >= 0, got {page}")
+        page_number = min(page, total_pages - 1)
+        return [page_number]
+    return list(range(total_pages))
 
 
 def convert_pdf(
@@ -130,8 +129,8 @@ def convert_pdf(
 
         pages = _normalize_page(page, doc.page_count)
 
-        for index, page_number in pages:
-            pix = doc[index].get_pixmap(dpi=dpi)
+        for page_number in pages:
+            pix = doc[page_number].get_pixmap(dpi=dpi)
             tmp = NamedTemporaryFile(delete=False, suffix=f".{fmt}")
             pix.save(tmp.name, **save_kwargs)
             outputs.append((page_number, tmp.name))
