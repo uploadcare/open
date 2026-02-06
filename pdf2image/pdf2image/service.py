@@ -31,15 +31,12 @@ makedirs(settings.FILE_CACHE_DIR, exist_ok=True)
 Status = Literal["pending", "success", "fail", None]
 
 
-class OutputEntry(TypedDict):
-    page: int
-    key: str
-
-
 class TargetFile(TypedDict, total=False):
     id: int
     name: str
     size: int
+    key: str
+    page: int
 
 
 State = dict[str, Any]
@@ -57,14 +54,21 @@ def _load_state(bucket: str, key: str) -> State | None:
     return loads(obj["Body"].read().decode())
 
 
-def _first_output_exists(state: State) -> bool:
-    outputs = state.get("outputs") or []
-    if not outputs:
+def _first_target_exists(state: State) -> bool:
+    target_files = state.get("target_files") or []
+    if not target_files:
         return False
 
-    key = outputs[0].get("key")
     bucket = state.get("bucket")
-    return bool(key and bucket and get_object(bucket, key))
+    if not bucket:
+        return False
+
+    for entry in target_files:
+        key = entry.get("key")
+        if key and get_object(bucket, key):
+            return True
+
+    return False
 
 
 def _has_timed_out(prev_state: State, now: datetime) -> bool:
@@ -97,8 +101,8 @@ def _create_initial_state(
         "total_time": None,
         "attempts": 0,
         "version": settings.VERSION,
-        "outputs": [],
         "output_format": output_format,
+        "target_format": None,
         "dpi": dpi,
         "page": page,
         "quality": quality,
@@ -129,7 +133,7 @@ def _archive_outputs(
 
     size = os.path.getsize(tmp_zip.name)
     os.remove(tmp_zip.name)
-    return {"name": f"{name_root}.zip", "size": size}
+    return {"name": f"{name_root}.zip", "size": size, "key": zip_key}
 
 
 def _resolve_output_location(event: Event) -> tuple[str, str]:
@@ -223,7 +227,7 @@ def invoke(event: Event, _context: Any) -> State:
         prev_status: Status = prev_state.get("status")  # type: ignore[assignment]
         state["attempts"] = prev_state.get("attempts", 0)
 
-        if prev_status == "success" and _first_output_exists(prev_state):
+        if prev_status == "success" and _first_target_exists(prev_state):
             return prev_state
 
         if prev_status == "pending":
@@ -264,7 +268,7 @@ def invoke(event: Event, _context: Any) -> State:
 
     try:
         page_index = page - 1 if page is not None else None
-        outputs, fmt = convert_pdf(
+        page_outputs, fmt = convert_pdf(
             input_file.name,
             output_format=output_format,
             dpi=dpi,
@@ -272,10 +276,11 @@ def invoke(event: Event, _context: Any) -> State:
             quality=quality,
         )
 
+        state["target_format"] = fmt
         state["convert_time"] = (datetime.utcnow() - start).total_seconds()
 
-        for page_number, image_path in outputs:
-            if len(outputs) == 1:
+        for page_number, image_path in page_outputs:
+            if len(page_outputs) == 1:
                 target_filename = f"{name_root}.{fmt}"
             else:
                 target_filename = f"{name_root}-{page_number}.{fmt}"
@@ -287,6 +292,8 @@ def invoke(event: Event, _context: Any) -> State:
                     "id": len(target_files) + 1,
                     "name": target_filename,
                     "size": size,
+                    "key": key,
+                    "page": page_number,
                 }
             )
 
@@ -297,7 +304,6 @@ def invoke(event: Event, _context: Any) -> State:
                 ExtraArgs={"ContentType": CONTENT_TYPES[fmt]},
             )
 
-            state["outputs"].append({"page": page_number, "key": key})
             page_files_temp.append((image_path, target_filename))
 
         if len(page_files_temp) > 1:
