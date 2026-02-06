@@ -280,7 +280,7 @@ def invoke(event: Event, _context: Any) -> State:
         state["convert_time"] = (datetime.utcnow() - start).total_seconds()
 
         for page_number, image_path in page_outputs:
-            if len(page_outputs) == 1:
+            if len(page_outputs) == 1 and page is None:
                 target_filename = f"{name_root}.{fmt}"
             else:
                 target_filename = f"{name_root}-{page_number}.{fmt}"
